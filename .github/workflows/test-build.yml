@@ -1,0 +1,93 @@
+# This workflow will install Python dependencies, run tests and lint with a single version of Python
+# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
+
+name: Test and Build epubTocGenerator plugin
+
+on:
+  push:
+    tags:
+      - 'v*'
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+env:
+  PLUGIN_NAME: "epubTocGenerator"
+
+jobs:
+  build:
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Get tag name
+      if: startswith( github.ref, 'refs/tags/')
+      id: get_tag_name
+      run: echo "TAGNAME=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_OUTPUT
+
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v5
+      with:
+        python-version: 3.8
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install flake8
+        pip install PyQt5==5.12.3
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+    - name: Lint with flake8
+      run: |
+        flake8 buildplugin
+        flake8 .
+
+    - name: Cache Qt
+      id: cache-qt
+      uses: actions/cache@v4
+      with:
+        path: ${{runner.workspace}}/Qt
+        key: ${{ runner.os }}-qttools-${{ hashFiles('**/reset-caches.txt') }}
+  
+    - name: Install Qt
+      uses: jurplel/install-qt-action@v3
+      with:
+        version: '5.12.3'
+        dir: ${{runner.workspace}}/Qt
+        setup-python: 'false'
+        archives: 'qtbase qttools icu'
+        cache: ${{ steps.cache-qt.outputs.cache-hit }}
+
+    - name: Build Plugin
+      run: |
+        which lrelease
+        python buildplugin --language
+
+    - name: Upload Artifact
+      if: "contains(github.event.head_commit.message, '[deploy]')"
+      uses: actions/upload-artifact@v4
+      with:
+        name: tagmerge-artifact
+        path: ./*.zip
+        retention-days: 3
+
+    - name: Create Release
+      if: startswith( github.ref, 'refs/tags/')
+      uses: ncipollo/release-action@v1
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        name: ${{ env.PLUGIN_NAME }} ${{ steps.get_tag_name.outputs.TAGNAME }}
+        body: |
+          Changes in this Release
+          - First Change
+          - Second Change
+        draft: true
+        prerelease: false
+        artifacts: './*.zip'

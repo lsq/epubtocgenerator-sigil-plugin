@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plugin>
+    <name>epubTocGenerator</name>
+    <type>edit</type>
+    <author>lsq</author>
+    <version>0.1.0</version>
+    <description>Generate Toc of the epub</description>
+    <engine>python3.4</engine>
+    <autostart>false</autostart>
+    <autoclose>false</autoclose>
+    <oslist>osx,unx,win</oslist>
+</plugin>
